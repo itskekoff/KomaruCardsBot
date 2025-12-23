@@ -42,6 +42,7 @@ class Strings:
     KEYWORD_POINTS_TEXT: str = "Очки"
     KEYWORD_COINS_TEXT: str = "Монеты"
     KEYWORD_BOOSTER_USED_TEXT: str = "Бустер «удача»"
+    KEYWORK_BOOSTER_ALREADY_ACTIVE: str = "уже активирован"
 
     KEYWORD_PROFILE_TITLE: str = "Профиль «"
     KEYWORD_COOLDOWN_VARIANTS: List[str] = field(default_factory=lambda: [
@@ -99,21 +100,25 @@ class Strings:
     LOG_SHOP_ACTIVATED_SUCCESS: str = "booster '{name}' activated."
     LOG_SHOP_CANT_ACTIVATE: str = "can't activate '{name}'."
     LOG_SHOP_ERROR_ACTIVATING: str = "error while trying activate booster: {e}"
-    
+    LOG_SHOP_BOOSTER_ALREADY_ACTIVE = "booster '{name}' already active (received alert)"
+    LOG_SHOP_ALERT_DETECTED = "detected alert while activating '{name}' (message doesn't changed)"
+    LOG_SHOP_TIMEOUT_AFTER_CLICK = "timeout after click on '{name}' - may be alert"
+    LOG_SHOP_REUSING_MESSAGE = "reusing message '{message_id}' for activation"
+
     LOG_NAVIGATION_BACK: str = "navigation: step back ({current}/{total})"
     
     ERROR_NO_REPLY_MARKUP: str = "message doesn't have reply markup"
     ERROR_ANSWER_TIMEOUT: str = "answer timeout."
     ERROR_BUTTON_NOT_FOUND: str = "button '{name}' not found."
 
-    # New logger messages for bot.py
+    LOG_RESOLVED_TARGET_BOT_ID: str = "resolved target bot ID: {target_bot_id}"
+    LOG_FAILED_RESOLVE_TARGET_BOT_ID: str = "failed to resolve target bot ID: {e}"
     LOG_COOLDOWN_TASK_CANCELLED_EXISTING: str = "cancelled existing cooldown task."
     LOG_COOLDOWN_TASK_CANCELLED_REDUCTION: str = "cancelled existing cooldown task due to reduction."
     LOG_COOLDOWN_NEW_DURATION: str = "new cooldown duration: {h}h {m}m {s}s"
     LOG_COOLDOWN_CLEARED_SENDING_CMD: str = "cooldown cleared. Sending CMD_KOMARU."
     LOG_COOLDOWN_REDUCED_IGNORED_AUTO: str = "cooldown reduced message ignored in automatic mode."
 
-    # New logger messages for interactor.py
     LOG_INTERACTOR_NEW_MESSAGE_EVENT: str = "Caught new message event: {message_id} in chat {chat_id}"
     LOG_INTERACTOR_EDITED_MESSAGE_EVENT: str = "Caught message edited event: {message_id} in chat {chat_id}. Monitored IDs: {monitored_ids}"
     LOG_INTERACTOR_PUTTING_EDITED_MESSAGE: str = "Putting edited message {message_id} into its queue."

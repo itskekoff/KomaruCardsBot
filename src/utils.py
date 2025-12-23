@@ -25,5 +25,5 @@ def find_button_by_text(message: Message, text: str) -> Button | None:
                 return button
     return None
 
-async def human_delay(min_sec=0.6, max_sec=1.2):
+async def human_delay(min_sec=0.6, max_sec=3.2):
     await asyncio.sleep(random.uniform(min_sec, max_sec))

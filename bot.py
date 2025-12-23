@@ -1,6 +1,5 @@
 import asyncio
 import random
-import toml
 from enum import Enum, auto
 from telethon import TelegramClient, events
 from src.logger import logger
@@ -11,16 +10,18 @@ from src.interactor import Interactor
 from src.utils import get_message_text, human_delay
 from src.config_manager import get_config
 
+
 class BotState(Enum):
     ACTIVE = auto()
     SLEEPY = auto()
     RESTING = auto()
 
+
 class KomaruBot:
     def __init__(self):
         self.config = get_config()
         self.app = TelegramClient("my_account", self.config["api_id"], self.config["api_hash"])
-        
+
         self.interactor = Interactor(self.app, self.config)
         self.shop = ShopManager(self.interactor)
 
@@ -32,7 +33,7 @@ class KomaruBot:
         self.current_coins = 0
         self.luck_booster_active = False
         self.is_busy = False
-        
+
         self.state = BotState.ACTIVE
         self.actions_since_rest = 0
         self.current_cooldown_duration = 0
@@ -40,11 +41,22 @@ class KomaruBot:
 
     async def start(self):
         await self.app.start()
-        await self.update_balance_from_profile()
 
+        try:
+            bot_entity = await self.app.get_entity(self.target_bot_id)
+            self.target_bot_id = bot_entity.id
+            self.interactor.target_bot_id = self.target_bot_id
+            logger.debug(strings.LOG_RESOLVED_TARGET_BOT_ID.format(target_bot_id=self.target_bot_id))
+        except Exception as e:
+            logger.error(strings.LOG_FAILED_RESOLVE_TARGET_BOT_ID.format(e=e))
+            return
+
+        await self.update_balance_from_profile()
         logger.info(strings.LOG_ANALYZING_STATE)
 
         if self.mode == "semi-automatic":
+            await self._check_and_use_boosters()
+            await human_delay(2, 5)
             await self.app.send_message(self.target_bot_id, strings.CMD_KOMARU)
             await self._main_loop(initial_state=None)
         else:
@@ -65,6 +77,7 @@ class KomaruBot:
                 break
 
         await self.app.run_until_disconnected()
+
 
     async def update_balance_from_profile(self):
         logger.info(strings.LOG_UPDATING_BALANCE)
@@ -89,14 +102,17 @@ class KomaruBot:
         finally:
             self.is_busy = False
 
+
     async def _handle_card_reception(self, parsed_data):
         if self.cooldown_task and not self.cooldown_task.done():
             self.cooldown_task.cancel()
 
         self.current_coins = parsed_data.details["total_coins"]
         logger.success(strings.LOG_GOT_CARD.format(name=parsed_data.details['name'], coins=self.current_coins))
-        if parsed_data.details.get("booster_used"): self.luck_booster_active = False
+
+        self.luck_booster_active = False
         await self._decide_and_act()
+
 
     async def _handle_cooldown(self, parsed_data):
         if self.cooldown_task and not self.cooldown_task.done():
@@ -137,12 +153,51 @@ class KomaruBot:
                 self.cooldown_task = asyncio.create_task(asyncio.sleep(cooldown + random.uniform(10, 60)))
                 await self.cooldown_task
                 await self._decide_and_act()
-        else: # semi-automatic mode
+        else:  # semi-automatic mode
             logger.info(strings.LOG_WAITING_SECS.format(seconds=cooldown))
             self.cooldown_task = asyncio.create_task(asyncio.sleep(cooldown + random.uniform(10, 60)))
             await self.cooldown_task
             await self._decide_and_act()
 
+    async def _check_and_use_boosters(self):
+        if random.random() < self.behavior_settings["spontaneous_profile_check_chance"]:
+            await self.update_balance_from_profile()
+
+        min_coins_for_luck = self.game_settings["luck_booster_min_coins_threshold"]
+        if not self.luck_booster_active and self.current_coins > min_coins_for_luck:
+            booster_name = strings.BOOSTER_LUCK
+            booster_result = await self.shop.get_booster_count(booster_name)
+
+            if isinstance(booster_result, tuple):
+                booster_count, booster_msg = booster_result
+            else:
+                booster_count = booster_result
+                booster_msg = None
+
+            if booster_count > 0:
+                result = await self.shop.use_booster(booster_name, from_message=booster_msg)
+                if result == "already_active":
+                    self.luck_booster_active = True
+                elif result:
+                    self.luck_booster_active = True
+
+            elif self.current_coins >= self.game_settings["luck_booster_cost"] + min_coins_for_luck:
+                if await self.shop.buy_booster(booster_name):
+                    await self.update_balance_from_profile()
+
+                    new_booster_result = await self.shop.get_booster_count(booster_name)
+                    if isinstance(new_booster_result, tuple):
+                        new_count, new_booster_msg = new_booster_result
+                    else:
+                        new_booster_msg = None
+
+                    if new_booster_msg:
+                        result = await self.shop.use_booster(booster_name, from_message=new_booster_msg)
+                        if result == "already_active" or result:
+                            self.luck_booster_active = True
+            else:
+                if booster_msg:
+                    await self.shop.navigate_back(booster_msg)
 
     async def _decide_and_act(self):
         self.is_busy = True
@@ -156,44 +211,24 @@ class KomaruBot:
                 rest_max = self.behavior_settings["rest_duration_max_minutes"]
                 rest_duration = random.uniform(rest_min * 60, rest_max * 60)
                 logger.info(strings.LOG_BOT_TIRED.format(minutes=rest_duration / 60))
-                
+
                 await asyncio.sleep(rest_duration)
-                
+
                 logger.info(strings.LOG_BOT_WAKING_UP)
                 await self.update_balance_from_profile()
                 self.actions_since_rest = 0
                 self.state = BotState.ACTIVE
 
-        if random.random() < self.behavior_settings["spontaneous_profile_check_chance"]:
-            await self.update_balance_from_profile()
-
-        if self.mode == "automatic": # only check/use luck booster in automatic mode
-            min_coins_for_luck = self.game_settings["luck_booster_min_coins_threshold"]
-            if not self.luck_booster_active and self.current_coins > min_coins_for_luck:
-                booster_name = strings.BOOSTER_LUCK
-                booster_count, booster_msg = await self.shop.get_booster_count(booster_name)
-                if booster_count > 0:
-                    if await self.shop.use_booster(booster_name): 
-                        self.luck_booster_active = True
-                elif self.current_coins >= self.game_settings["luck_booster_cost"] + min_coins_for_luck:
-                    if await self.shop.buy_booster(booster_name):
-                        await self.update_balance_from_profile()
-                        _, new_booster_msg = await self.shop.get_booster_count(booster_name)
-                        if new_booster_msg:
-                            if await self.shop.use_booster(booster_name): 
-                                self.luck_booster_active = True
-                else:
-                    if booster_msg:
-                        await self.shop.navigate_back(booster_msg)
-
+        await self._check_and_use_boosters()
 
         self.is_busy = False
         await human_delay(10, 45)
         logger.info(strings.LOG_SENDING_CARD_MESSAGE)
         await self.app.send_message(self.target_bot_id, strings.CMD_KOMARU)
 
+
     async def _main_loop(self, initial_state=None):
-        @self.app.on(events.NewMessage(from_users=self.target_bot_id))
+        @self.app.on(events.NewMessage(chats=self.target_bot_id))
         async def message_handler(event):
             message = event.message
             message_text = get_message_text(message)
@@ -207,12 +242,12 @@ class KomaruBot:
             elif parsed.type == MessageType.COOLDOWN:
                 await self._handle_cooldown(parsed)
 
-        @self.app.on(events.MessageEdited(from_users=self.target_bot_id))
+        # Аналогично для редактирования
+        @self.app.on(events.MessageEdited(chats=self.target_bot_id))
         async def message_edited_handler(event):
             message = event.message
             message_text = get_message_text(message)
             if not message_text:
-                logger.debug(strings.LOG_EMPTY_EDITED_MESSAGE_IGNORED)
                 return
 
             parsed = parse_message(message_text)
@@ -222,7 +257,8 @@ class KomaruBot:
                     logger.debug(strings.LOG_COOLDOWN_TASK_CANCELLED_REDUCTION)
 
                 self.current_cooldown_duration = max(0, self.current_cooldown_duration - 3600)
-                h, m, s = self.current_cooldown_duration // 3600, (self.current_cooldown_duration % 3600) // 60, self.current_cooldown_duration % 60
+                h, m, s = self.current_cooldown_duration // 3600, (
+                        self.current_cooldown_duration % 3600) // 60, self.current_cooldown_duration % 60
                 logger.info(strings.LOG_COOLDOWN_NEW_DURATION.format(h=h, m=m, s=s))
 
                 if self.current_cooldown_duration <= 0:
@@ -230,7 +266,8 @@ class KomaruBot:
                     await self._decide_and_act()
                 else:
                     logger.info(strings.LOG_WAITING_SECS.format(seconds=self.current_cooldown_duration))
-                    self.cooldown_task = asyncio.create_task(asyncio.sleep(self.current_cooldown_duration + random.uniform(10, 60)))
+                    self.cooldown_task = asyncio.create_task(
+                        asyncio.sleep(self.current_cooldown_duration + random.uniform(10, 60)))
                     await self.cooldown_task
                     await self._decide_and_act()
 

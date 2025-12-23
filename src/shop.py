@@ -77,7 +77,7 @@ class ShopManager:
             self, history: list, booster_name: str, navigation_func,
             action_button: str, success_keyword: str,
             success_log: str, failure_log: str
-    ) -> bool:
+    ) -> bool | str:
         msg = await navigation_func(history)
 
         button_to_click = None
@@ -99,20 +99,33 @@ class ShopManager:
         msg = await self.interactor.execute_action(ActionMode.CLICK, original_message=msg, button_text=button_to_click)
         history.append(msg)
 
-        logger.debug(strings.LOG_SHOP_MESSAGE_CONTENT_BEFORE_CLICK.format(action_button=action_button, message_text=get_message_text(msg)))
-        final_msg = await self.interactor.execute_action(ActionMode.CLICK, original_message=msg,
-                                                         button_text=action_button)
-        history.append(final_msg)
+        logger.debug(strings.LOG_SHOP_MESSAGE_CONTENT_BEFORE_CLICK.format(action_button=action_button,
+                                                                          message_text=get_message_text(msg)))
 
-        message_text = get_message_text(final_msg)
-        if message_text and success_keyword in message_text:
-            logger.success(success_log.format(name=booster_name))
-            await self.navigate_back(final_msg)
-            return True
-        else:
-            logger.error(failure_log.format(name=booster_name))
-            await self.navigate_back(final_msg)
-            return False
+        try:
+            final_msg = await self.interactor.execute_action(ActionMode.CLICK, original_message=msg,
+                                                             button_text=action_button)
+            history.append(final_msg)
+
+            if final_msg.id == msg.id:
+                logger.warning(strings.LOG_SHOP_ALERT_DETECTED.format(name=booster_name))
+                await self.navigate_back(msg)
+                return "alert_response"
+
+            message_text = get_message_text(final_msg)
+            if message_text and success_keyword in message_text:
+                logger.success(success_log.format(name=booster_name))
+                await self.navigate_back(final_msg)
+                return True
+            else:
+                logger.error(failure_log.format(name=booster_name))
+                await self.navigate_back(final_msg)
+                return False
+
+        except TimeoutError:
+            logger.warning(strings.LOG_SHOP_TIMEOUT_AFTER_CLICK.format(name=booster_name))
+            await self.navigate_back(msg)
+            return "alert_response"
 
     @shop_action(strings.LOG_SHOP_ERROR_CHECKING_INVENTORY, default_return=0)
     async def get_booster_count(self, booster_name: str, **kwargs) -> int | tuple[int, Message]:
@@ -166,15 +179,60 @@ class ShopManager:
         )
 
     @shop_action(strings.LOG_SHOP_ERROR_ACTIVATING, default_return=False)
-    async def use_booster(self, booster_name: str, **kwargs) -> bool:
+    async def use_booster(self, booster_name: str, from_message: Message = None, **kwargs) -> bool | str:
         history = kwargs['history']
         logger.info(strings.LOG_SHOP_ACTIVATING_BOOSTER.format(name=booster_name))
-        return await self._perform_booster_action(
-            history=history,
-            booster_name=booster_name,
-            navigation_func=self._navigate_to_inventory_boosters,
+
+        if from_message:
+            logger.debug(strings.LOG_SHOP_REUSING_MESSAGE.format(message_id=from_message.id))
+            msg = from_message
+            history.append(msg)
+        else:
+            result = await self._perform_booster_action(
+                history=history,
+                booster_name=booster_name,
+                navigation_func=self._navigate_to_inventory_boosters,
+                action_button=strings.BTN_ACTIVATE,
+                success_keyword=strings.KEYWORD_ACTIVATED,
+                success_log=strings.LOG_SHOP_ACTIVATED_SUCCESS,
+                failure_log=strings.LOG_SHOP_CANT_ACTIVATE
+            )
+
+            if result == "alert_response":
+                logger.info(strings.LOG_SHOP_BOOSTER_ALREADY_ACTIVE.format(name=booster_name))
+                return "already_active"
+
+            return result
+
+        logger.debug(strings.LOG_SHOP_MESSAGE_CONTENT_BEFORE_CLICK.format(
             action_button=strings.BTN_ACTIVATE,
-            success_keyword=strings.KEYWORD_ACTIVATED,
-            success_log=strings.LOG_SHOP_ACTIVATED_SUCCESS,
-            failure_log=strings.LOG_SHOP_CANT_ACTIVATE
-        )
+            message_text=get_message_text(msg)
+        ))
+
+        try:
+            final_msg = await self.interactor.execute_action(
+                ActionMode.CLICK,
+                original_message=msg,
+                button_text=strings.BTN_ACTIVATE
+            )
+            history.append(final_msg)
+
+            if final_msg.id == msg.id:
+                logger.warning(strings.LOG_SHOP_ALERT_DETECTED.format(name=booster_name))
+                await self.navigate_back(msg)
+                return "alert_response"
+
+            message_text = get_message_text(final_msg)
+            if message_text and strings.KEYWORD_ACTIVATED in message_text:
+                logger.success(strings.LOG_SHOP_ACTIVATED_SUCCESS.format(name=booster_name))
+                await self.navigate_back(final_msg)
+                return True
+            else:
+                logger.error(strings.LOG_SHOP_CANT_ACTIVATE.format(name=booster_name))
+                await self.navigate_back(final_msg)
+                return False
+
+        except TimeoutError:
+            logger.warning(strings.LOG_SHOP_TIMEOUT_AFTER_CLICK.format(name=booster_name))
+            await self.navigate_back(msg)
+            return "alert_response"
