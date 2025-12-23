@@ -9,7 +9,7 @@ This project is a Telegram user-bot designed to automate interactions with the K
 *   **Luck Booster Usage**: Can use luck boosters when a certain coin threshold is reached.
 *   **Two Operating Modes**:
     *   **WIP: Automatic**: Fully automates the process, including booster usage and cooldown waiting.
-    *   **Semi-automatic**: Sends the `/komaru` command and waits for manual initiation, but then continues to automate actions.
+    *   **Semi-automatic**: Sends the `камару `repeatly, with dynamic cooldown update (if used time booster 1x-3x times).
 *   **Customizable Behavior**: You can configure profile check frequency, number of actions before rest, and rest duration.
 
 *WIP - means: Work In Progress, may be unstable or not working. use `semi-automatic` mode.*
