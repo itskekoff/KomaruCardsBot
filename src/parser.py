@@ -8,11 +8,11 @@ def parse_message(text: str) -> ParsedMessage:
 
     # --- card ---
     card_pattern = re.compile(
-        rf".*?(?:{strings.KEYWORD_CARD_FOUND}|{strings.KEYWORD_CARD_COLLECTION_ADDED}|{strings.KEYWORD_CARD_NEW_INTRO}|{strings.KEYWORD_CARD_GENERIC}|{strings.KEYWORD_CARD_BOOSTER_SUCCESS}) «(.+?)»(?: {strings.KEYWORD_CARD_SUFFIX_ALREADY_HAVE}|{strings.KEYWORD_CARD_SUFFIX_REPEATED}|{strings.KEYWORD_CARD_SUFFIX_ALREADY_IN_COLLECTION}|{strings.KEYWORD_CARD_SUFFIX_YOURS})?.*?\n\n"
+        rf".*?(?:{'|'.join(strings.KEYWORD_CARD_INTRO_VARIANTS)}) «(.+?)»(?: {strings.KEYWORD_CARD_SUFFIX_ALREADY_HAVE}|{strings.KEYWORD_CARD_SUFFIX_REPEATED}|{strings.KEYWORD_CARD_SUFFIX_ALREADY_IN_COLLECTION}|{strings.KEYWORD_CARD_SUFFIX_YOURS})?.*?\n\n"
         rf".*?{strings.KEYWORD_RARITY_TEXT} • (.+?)\n"
         rf".*?{strings.KEYWORD_POINTS_TEXT} • [+-]?[\d,]+ \[(.+)]\n"
         rf".*?{strings.KEYWORD_COINS_TEXT} • [+-]?[\d,]+ \[(.+)]"
-        rf"(?:\n.*?{strings.KEYWORD_BOOSTER_USED_TEXT}.*)?" , # Optional booster line
+        rf"(?:\n.*?{strings.KEYWORD_BOOSTER_USED_TEXT}.*)?" ,
         re.MULTILINE
     )
     card_match = card_pattern.search(text)
@@ -44,7 +44,7 @@ def parse_message(text: str) -> ParsedMessage:
 
     # --- cooldown ---
     cooldown_pattern = re.compile(
-        rf"(?:{strings.KEYWORD_COOLDOWN}|{strings.KEYWORD_COOLDOWN_2}|{strings.KEYWORD_COOLDOWN_3}|{strings.KEYWORD_COOLDOWN_4}) "
+        rf"(?:{'|'.join(strings.KEYWORD_COOLDOWN_VARIANTS)}) "
         rf"(?:(\d+)ч\. )?"
         rf"(?:(\d+)мин\. )?"
         rf"(\d+)сек\."

@@ -9,6 +9,7 @@ from src.models import MessageType, strings, ActionMode
 from src.shop import ShopManager
 from src.interactor import Interactor
 from src.utils import get_message_text, human_delay
+from src.config_manager import get_config
 
 class BotState(Enum):
     ACTIVE = auto()
@@ -17,7 +18,7 @@ class BotState(Enum):
 
 class KomaruBot:
     def __init__(self):
-        self.config = toml.load("config.toml")
+        self.config = get_config()
         self.app = TelegramClient("my_account", self.config["api_id"], self.config["api_hash"])
         
         self.interactor = Interactor(self.app, self.config)

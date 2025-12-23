@@ -68,7 +68,6 @@ class Interactor:
             if not original_message or not original_message.buttons:
                 raise ValueError(strings.ERROR_NO_REPLY_MARKUP)
 
-            # Clear queues and create waiters
             while not self.new_message_queue.empty():
                 self.new_message_queue.get_nowait()
             logger.debug(strings.LOG_INTERACTOR_CLEARED_NEW_MESSAGE_QUEUE_CLICK)
@@ -78,19 +77,16 @@ class Interactor:
             waiters = {new_message_waiter, edit_waiter}
             logger.debug(strings.LOG_INTERACTOR_CREATED_WAITERS.format(message_id=original_message.id))
 
-            # Try to perform the click
             try:
                 logger.debug(strings.LOG_INTERACTOR_AWAITING_CLICK.format(button_text=button_text))
                 await original_message.click(text=button_text)
                 logger.debug(strings.LOG_INTERACTOR_CLICK_SENT_SUCCESS.format(button_text=button_text))
             except Exception as e:
                 logger.error(strings.LOG_INTERACTOR_CLICK_FAILED.format(e=e))
-                # Cancel waiters if click fails
                 for task in waiters:
                     task.cancel()
                 raise
 
-            # Wait for the response
             try:
                 logger.debug(strings.LOG_INTERACTOR_WAITING_RESPONSE)
                 done, pending = await asyncio.wait(waiters, return_when=asyncio.FIRST_COMPLETED)
@@ -109,7 +105,6 @@ class Interactor:
                 return result_message
 
             except Exception as e:
-                # This block now specifically handles errors in waiting for the response
                 logger.error(strings.LOG_INTERACTOR_EXCEPTION_WAITING_RESPONSE.format(e=e))
                 if "Could not find any button with text" in str(e):
                      raise ValueError(strings.ERROR_BUTTON_NOT_FOUND.format(name=button_text))

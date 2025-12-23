@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 
 class MessageType(Enum):
     NEW_CARD = auto()
@@ -21,16 +21,17 @@ class ParsedMessage:
 
 @dataclass
 class Strings:
-    CMD_KOMARU: str = "комару"
+    CMD_KOMARU: str = "камар"
     CMD_PROFILE: str = "/profile"
     CMD_SHOP: str = "/shop"
 
-    # Card-related keywords (emoji-agnostic)
-    KEYWORD_CARD_FOUND: str = "Вы нашли карточку"
-    KEYWORD_CARD_COLLECTION_ADDED: str = "Коллекция пополнилась карточкой"
-    KEYWORD_CARD_NEW_INTRO: str = "Новая карточка —"
-    KEYWORD_CARD_GENERIC: str = "Карточка" # Used for "Карточка ... ваша!", "Карточка ... у вас повторно", "Карточка ... уже в коллекции!"
-    KEYWORD_CARD_BOOSTER_SUCCESS: str = "Успех! Карточка"
+    KEYWORD_CARD_INTRO_VARIANTS: List[str] = field(default_factory=lambda: [
+        "Вы нашли карточку",
+        "Коллекция пополнилась карточкой",
+        "Новая карточка —",
+        "Карточка",
+        "Успех! Карточка"
+    ])
 
     KEYWORD_CARD_SUFFIX_YOURS: str = "ваша!"
     KEYWORD_CARD_SUFFIX_ALREADY_HAVE: str = "уже у вас"
@@ -43,10 +44,12 @@ class Strings:
     KEYWORD_BOOSTER_USED_TEXT: str = "Бустер «удача»"
 
     KEYWORD_PROFILE_TITLE: str = "Профиль «"
-    KEYWORD_COOLDOWN: str = "Подождите"
-    KEYWORD_COOLDOWN_2: str = "Попробуйте снова через"
-    KEYWORD_COOLDOWN_3: str = "Попробуйте через"
-    KEYWORD_COOLDOWN_4: str = "Возвращайтесь через"
+    KEYWORD_COOLDOWN_VARIANTS: List[str] = field(default_factory=lambda: [
+        "Подождите",
+        "Попробуйте снова через",
+        "Попробуйте через",
+        "Возвращайтесь через"
+    ])
     KEYWORD_COOLDOWN_REDUCED: str = "Бустер «ускоритель времени» активирован"
     KEYWORD_BOUGHT: str = "куплен"
     KEYWORD_ACTIVATED: str = "активирован"

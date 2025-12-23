@@ -1,14 +1,13 @@
 import sys
 import toml
 from loguru import logger
+from src.config_manager import get_config
 
 logger.remove()
 
 try:
-    config = toml.load("../config.toml")
+    config = get_config()
     debug_logging = config.get("debug_logging", False)
-except FileNotFoundError:
-    debug_logging = False
 except Exception as e:
     print(f"Error loading config.toml for logger: {e}. Defaulting to INFO level.")
     debug_logging = False
