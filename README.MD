@@ -13,8 +13,8 @@ This project is a Telegram user-bot designed to automate interactions with the K
 *   **Customizable Behavior**: You can configure profile check frequency, number of actions before rest, and rest duration.
 
 *WIP - means: Work In Progress, may be unstable or not working. use `semi-automatic` mode.*
+*semi-auto also buying/uses luck booster*
 
-** - also buying/uses luck booster*
 ## Setup
 
 1.  **Clone the repository**:
