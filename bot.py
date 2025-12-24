@@ -36,11 +36,16 @@ class KomaruBot:
 
         self.state = BotState.ACTIVE
         self.actions_since_rest = 0
-        self.current_cooldown_duration = 0
-        self.cooldown_task = None
+        
+        # Cooldown management with a ticking task
+        self.remaining_cooldown = 0
+        self.is_in_cooldown = False
+        self.cooldown_manager_task = None
+
 
     async def start(self):
         await self.app.start()
+        self.cooldown_manager_task = asyncio.create_task(self._cooldown_manager())
 
         try:
             bot_entity = await self.app.get_entity(self.target_bot_id)
@@ -78,6 +83,19 @@ class KomaruBot:
 
         await self.app.run_until_disconnected()
 
+    async def _cooldown_manager(self):
+        """A background task that decrements the cooldown every second."""
+        while True:
+            await asyncio.sleep(1)
+            if self.is_in_cooldown and self.remaining_cooldown > 0:
+                self.remaining_cooldown -= 1
+                if self.remaining_cooldown <= 0:
+                    # Check is_in_cooldown to prevent double execution if cleared by handler
+                    if self.is_in_cooldown:
+                        self.is_in_cooldown = False
+                        logger.info(strings.LOG_COOLDOWN_CLEARED_SENDING_CMD)
+                        if not self.is_busy:
+                            asyncio.create_task(self._decide_and_act())
 
     async def update_balance_from_profile(self):
         logger.info(strings.LOG_UPDATING_BALANCE)
@@ -104,8 +122,8 @@ class KomaruBot:
 
 
     async def _handle_card_reception(self, parsed_data):
-        if self.cooldown_task and not self.cooldown_task.done():
-            self.cooldown_task.cancel()
+        self.is_in_cooldown = False
+        self.remaining_cooldown = 0
 
         self.current_coins = parsed_data.details["total_coins"]
         logger.success(strings.LOG_GOT_CARD.format(name=parsed_data.details['name'], coins=self.current_coins))
@@ -115,12 +133,10 @@ class KomaruBot:
 
 
     async def _handle_cooldown(self, parsed_data):
-        if self.cooldown_task and not self.cooldown_task.done():
-            self.cooldown_task.cancel()
-            logger.debug(strings.LOG_COOLDOWN_TASK_CANCELLED_EXISTING)
-
         cooldown = parsed_data.details['cooldown']
-        self.current_cooldown_duration = cooldown
+        self.remaining_cooldown = cooldown
+        self.is_in_cooldown = True
+        
         h, m, s = cooldown // 3600, (cooldown % 3600) // 60, cooldown % 60
         logger.warning(strings.LOG_COOLDOWN.format(h=h, m=m, s=s))
 
@@ -150,14 +166,8 @@ class KomaruBot:
             else:
                 if cooldown > 3600: logger.info(strings.LOG_COOLDOWN_WAIT)
                 logger.info(strings.LOG_WAITING_SECS.format(seconds=cooldown))
-                self.cooldown_task = asyncio.create_task(asyncio.sleep(cooldown + random.uniform(10, 60)))
-                await self.cooldown_task
-                await self._decide_and_act()
-        else:  # semi-automatic mode
+        else:
             logger.info(strings.LOG_WAITING_SECS.format(seconds=cooldown))
-            self.cooldown_task = asyncio.create_task(asyncio.sleep(cooldown + random.uniform(10, 60)))
-            await self.cooldown_task
-            await self._decide_and_act()
 
     async def _check_and_use_boosters(self):
         if random.random() < self.behavior_settings["spontaneous_profile_check_chance"]:
@@ -242,7 +252,6 @@ class KomaruBot:
             elif parsed.type == MessageType.COOLDOWN:
                 await self._handle_cooldown(parsed)
 
-        # Аналогично для редактирования
         @self.app.on(events.MessageEdited(chats=self.target_bot_id))
         async def message_edited_handler(event):
             message = event.message
@@ -252,24 +261,20 @@ class KomaruBot:
 
             parsed = parse_message(message_text)
             if parsed.type == MessageType.COOLDOWN_REDUCED and self.mode == "semi-automatic":
-                if self.cooldown_task and not self.cooldown_task.done():
-                    self.cooldown_task.cancel()
-                    logger.debug(strings.LOG_COOLDOWN_TASK_CANCELLED_REDUCTION)
-
-                self.current_cooldown_duration = max(0, self.current_cooldown_duration - 3600)
-                h, m, s = self.current_cooldown_duration // 3600, (
-                        self.current_cooldown_duration % 3600) // 60, self.current_cooldown_duration % 60
+                logger.debug(strings.LOG_COOLDOWN_TASK_CANCELLED_REDUCTION)
+                
+                self.remaining_cooldown = max(0, self.remaining_cooldown - 3600)
+                
+                h, m, s = self.remaining_cooldown // 3600, (
+                        self.remaining_cooldown % 3600) // 60, self.remaining_cooldown % 60
                 logger.info(strings.LOG_COOLDOWN_NEW_DURATION.format(h=h, m=m, s=s))
 
-                if self.current_cooldown_duration <= 0:
+                if self.remaining_cooldown <= 0 and self.is_in_cooldown:
+                    self.is_in_cooldown = False
                     logger.info(strings.LOG_COOLDOWN_CLEARED_SENDING_CMD)
-                    await self._decide_and_act()
+                    asyncio.create_task(self._decide_and_act())
                 else:
-                    logger.info(strings.LOG_WAITING_SECS.format(seconds=self.current_cooldown_duration))
-                    self.cooldown_task = asyncio.create_task(
-                        asyncio.sleep(self.current_cooldown_duration + random.uniform(10, 60)))
-                    await self.cooldown_task
-                    await self._decide_and_act()
+                    logger.info(strings.LOG_WAITING_SECS.format(seconds=self.remaining_cooldown))
 
         logger.info(strings.LOG_MAIN_LOOP_RUNNING)
         if initial_state:
