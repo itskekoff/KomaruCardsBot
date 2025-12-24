@@ -8,7 +8,7 @@ def parse_message(text: str) -> ParsedMessage:
 
     # --- card ---
     card_pattern = re.compile(
-        rf".*?(?:{'|'.join(strings.KEYWORD_CARD_INTRO_VARIANTS)}) «(.+?)»(?: {strings.KEYWORD_CARD_SUFFIX_ALREADY_HAVE}|{strings.KEYWORD_CARD_SUFFIX_REPEATED}|{strings.KEYWORD_CARD_SUFFIX_ALREADY_IN_COLLECTION}|{strings.KEYWORD_CARD_SUFFIX_YOURS})?.*?\n\n"
+        rf".*?(?:{'|'.join(strings.KEYWORD_CARD_INTRO_VARIANTS)}|{'|'.join(strings.KEYWORD_CARD_INTRO_DUPLICATE_VARIANTS)}) «(.+?)»(?: {'|'.join(strings.KEYWORD_CARD_DUPLICATE_VARIANTS)})?.*?\n\n"
         rf".*?{strings.KEYWORD_RARITY_TEXT} • (.+?)\n"
         rf".*?{strings.KEYWORD_POINTS_TEXT} • [+-]?[\d,]+ \[(.+)]\n"
         rf".*?{strings.KEYWORD_COINS_TEXT} • [+-]?[\d,]+ \[(.+)]"
@@ -17,11 +17,7 @@ def parse_message(text: str) -> ParsedMessage:
     )
     card_match = card_pattern.search(text)
     if card_match:
-        is_duplicate = any(keyword in text for keyword in [
-            strings.KEYWORD_CARD_SUFFIX_ALREADY_HAVE,
-            strings.KEYWORD_CARD_SUFFIX_REPEATED,
-            strings.KEYWORD_CARD_SUFFIX_ALREADY_IN_COLLECTION
-        ])
+        is_duplicate = any(keyword in text for keyword in (strings.KEYWORD_CARD_DUPLICATE_VARIANTS or strings.KEYWORD_CARD_INTRO_DUPLICATE_VARIANTS))
         card_type = MessageType.DUPLICATE_CARD if is_duplicate else MessageType.NEW_CARD
         return ParsedMessage(type=card_type, details={
             "name": card_match.group(1),

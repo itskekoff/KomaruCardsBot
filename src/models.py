@@ -34,10 +34,18 @@ class Strings:
         "Найдена карточка —"
     ])
 
-    KEYWORD_CARD_SUFFIX_YOURS: str = "ваша!"
-    KEYWORD_CARD_SUFFIX_ALREADY_HAVE: str = "уже у вас"
-    KEYWORD_CARD_SUFFIX_REPEATED: str = "у вас повторно"
-    KEYWORD_CARD_SUFFIX_ALREADY_IN_COLLECTION: str = "уже в коллекции!"
+    KEYWORD_CARD_INTRO_DUPLICATE_VARIANTS: List[str] = field(default_factory=lambda: [
+        "Вы уже находили карточку",
+        "Эта карточка"
+    ])
+
+    KEYWORD_CARD_DUPLICATE_VARIANTS: List[str] = field(default_factory=lambda: [
+        "ваша!",
+        "уже у вас",
+        "у вас повторно",
+        "уже в коллекции!",
+        "у вас есть"
+    ])
 
     KEYWORD_RARITY_TEXT: str = "Редкость"
     KEYWORD_POINTS_TEXT: str = "Очки"
@@ -117,7 +125,7 @@ class Strings:
     LOG_COOLDOWN_TASK_CANCELLED_EXISTING: str = "cancelled existing cooldown task."
     LOG_COOLDOWN_TASK_CANCELLED_REDUCTION: str = "cancelled existing cooldown task due to reduction."
     LOG_COOLDOWN_NEW_DURATION: str = "new cooldown duration: {h}h {m}m {s}s"
-    LOG_COOLDOWN_CLEARED_SENDING_CMD: str = "cooldown cleared. Sending CMD_KOMARU."
+    LOG_COOLDOWN_CLEARED_SENDING_CMD: str = "cooldown cleared. starting 'decide_and_act()' sequence"
     LOG_COOLDOWN_REDUCED_IGNORED_AUTO: str = "cooldown reduced message ignored in automatic mode."
 
     LOG_INTERACTOR_NEW_MESSAGE_EVENT: str = "Caught new message event: {message_id} in chat {chat_id}"
@@ -145,7 +153,6 @@ class Strings:
     LOG_INTERACTOR_EXCEPTION_WAITING_RESPONSE: str = "An exception occurred while waiting for a response: {e}"
     LOG_INTERACTOR_CANCELLED_TASK_EXCEPTION: str = "Cancelled task {task_id} in exception handler."
 
-    # New logger messages for shop.py
     LOG_SHOP_MESSAGE_CONTENT_BEFORE_CLICK: str = "Message content before clicking '{action_button}':\n{message_text}"
 
 strings = Strings()
