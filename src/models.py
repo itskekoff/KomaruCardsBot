@@ -25,28 +25,6 @@ class Strings:
     CMD_PROFILE: str = "/profile"
     CMD_SHOP: str = "/shop"
 
-    KEYWORD_CARD_INTRO_VARIANTS: List[str] = field(default_factory=lambda: [
-        "Вы нашли карточку",
-        "Коллекция пополнилась карточкой",
-        "Новая карточка —",
-        "Карточка",
-        "Успех! Карточка",
-        "Найдена карточка —"
-    ])
-
-    KEYWORD_CARD_INTRO_DUPLICATE_VARIANTS: List[str] = field(default_factory=lambda: [
-        "Вы уже находили карточку",
-        "Эта карточка"
-    ])
-
-    KEYWORD_CARD_DUPLICATE_VARIANTS: List[str] = field(default_factory=lambda: [
-        "ваша!",
-        "уже у вас",
-        "у вас повторно",
-        "уже в коллекции!",
-        "у вас есть"
-    ])
-
     KEYWORD_RARITY_TEXT: str = "Редкость"
     KEYWORD_POINTS_TEXT: str = "Очки"
     KEYWORD_COINS_TEXT: str = "Монеты"

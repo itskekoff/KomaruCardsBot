@@ -37,7 +37,6 @@ class KomaruBot:
         self.state = BotState.ACTIVE
         self.actions_since_rest = 0
         
-        # Cooldown management with a ticking task
         self.remaining_cooldown = 0
         self.is_in_cooldown = False
         self.cooldown_manager_task = None
@@ -84,13 +83,11 @@ class KomaruBot:
         await self.app.run_until_disconnected()
 
     async def _cooldown_manager(self):
-        """A background task that decrements the cooldown every second."""
         while True:
             await asyncio.sleep(1)
             if self.is_in_cooldown and self.remaining_cooldown > 0:
                 self.remaining_cooldown -= 1
                 if self.remaining_cooldown <= 0:
-                    # Check is_in_cooldown to prevent double execution if cleared by handler
                     if self.is_in_cooldown:
                         self.is_in_cooldown = False
                         logger.info(strings.LOG_COOLDOWN_CLEARED_SENDING_CMD)
@@ -247,6 +244,7 @@ class KomaruBot:
                 return
 
             parsed = parse_message(message_text)
+            logger.debug(parsed.__str__())
             if parsed.type in [MessageType.NEW_CARD, MessageType.DUPLICATE_CARD]:
                 await self._handle_card_reception(parsed)
             elif parsed.type == MessageType.COOLDOWN:
